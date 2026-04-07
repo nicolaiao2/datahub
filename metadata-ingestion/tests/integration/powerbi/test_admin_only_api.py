@@ -25,6 +25,33 @@ def scan_init_response(request, context):
     return w_id_vs_response[workspace_id]
 
 
+def admin_datasets_response(request, context):
+    if "05169cd2-e713-41e6-9600-1d8066d95445" in request.query:
+        return {
+            "value": [
+                {
+                    "id": "05169CD2-E713-41E6-9600-1D8066D95445",
+                    "name": "library-dataset",
+                    "configuredBy": "sindri@something.com",
+                    "webUrl": "http://localhost/groups/64ED5CAD-7C10-4684-8180-826122881108/datasets/05169CD2-E713-41E6-9600-1D8066D95445",
+                }
+            ]
+        }
+
+    if "ba0130a1-5b03-40de-9535-b34e778ea6ed" in request.query:
+        return {
+            "value": [
+                {
+                    "id": "ba0130a1-5b03-40de-9535-b34e778ea6ed",
+                    "name": "hr_pbi_test",
+                    "configuredBy": "sindri@something.com",
+                    "webUrl": "http://localhost/groups/64ED5CAD-7C10-4684-8180-826122881108/datasets/ba0130a1-5b03-40de-9535-b34e778ea6ed",
+                }
+            ]
+        }
+
+
+
 def register_mock_admin_api(
     request_mock: Any, override_data: Optional[dict] = None
 ) -> None:

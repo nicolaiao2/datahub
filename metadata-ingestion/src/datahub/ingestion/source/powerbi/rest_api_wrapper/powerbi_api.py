@@ -217,12 +217,6 @@ class PowerBiAPI:
                     extract_ownership=self.__config.extract_ownership,
                 )
             }
-            if self.__config.extract_ownership is False:
-                logger.info(
-                    "Skipping user retrieval for reports as extract_ownership is set to false"
-                )
-                for report in reports.values():
-                    report.users = []
         else:
             try:
                 reports = {

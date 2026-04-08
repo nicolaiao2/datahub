@@ -200,6 +200,9 @@ class PowerBiAPI:
             dashboard.workspace_id, Constant.DASHBOARDS, dashboard.id
         )
 
+    def get_report_users(self, workspace_id: str, report_id: str) -> List[User]:
+        return self._get_entity_users(workspace_id, Constant.REPORTS, report_id)
+
     def get_reports(self, workspace: Workspace) -> Dict[str, Report]:
         """
         Fetch the report from PowerBi for the given Workspace
@@ -214,6 +217,12 @@ class PowerBiAPI:
                     extract_ownership=self.__config.extract_ownership,
                 )
             }
+            if self.__config.extract_ownership is False:
+                logger.info(
+                    "Skipping user retrieval for reports as extract_ownership is set to false"
+                )
+                for report in reports.values():
+                    report.users = []
         else:
             try:
                 reports = {

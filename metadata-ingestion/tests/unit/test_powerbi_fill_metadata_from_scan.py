@@ -1117,9 +1117,8 @@ def test_new_powerbi_reports_uses_raw_weburl_from_scan_entry():
     assert reports[0].webUrl == "https://app.powerbi.com/groups/WS-R7/reports/R-direct"
 
 
-def test_new_powerbi_reports_skips_users_when_extract_ownership_false():
-    """extract_ownership=False must produce users=[] without constructing User
-    objects; extract_ownership=True (default) must populate users normally."""
+def test_new_powerbi_reports_populates_users():
+    """Users from the scan result are always populated by new_powerbi_reports."""
     workspace = _make_workspace("WS-R6")
     raw_user: Dict[str, Any] = {
         Constant.IDENTIFIER: "U-1",
@@ -1129,11 +1128,8 @@ def test_new_powerbi_reports_skips_users_when_extract_ownership_false():
     }
     raw = {**_raw_report("R-1"), Constant.USERS: [raw_user]}
 
-    no_ownership = new_powerbi_reports(workspace, [raw], extract_ownership=False)
-    assert no_ownership[0].users == []
-
-    with_ownership = new_powerbi_reports(workspace, [raw], extract_ownership=True)
-    assert len(with_ownership[0].users) == 1
+    reports = new_powerbi_reports(workspace, [raw])
+    assert len(reports[0].users) == 1
 
 
 # ---------------------------------------------------------------------------

@@ -270,14 +270,15 @@ class PowerBiAPI:
                 report.pages = self._get_resolver().get_pages_by_report(
                     workspace=workspace, report_id=report.id
                 )
-            except requests.exceptions.RequestException:
+            except Exception:
                 self.log_http_error(
                     message=f"Unable to fetch pages for report {report.name}({report.id}) in workspace {workspace.name}"
                 )
                 self.reporter.warning(
-                    title="Pages Fetch Failed",
-                    message="Unable to fetch pages for report; pages will be empty.",
-                    context=f"report={report.name} id={report.id} workspace={workspace.name}",
+                    title="Report Pages Not Fetched",
+                    message=f"Pages for report '{report.name}' could not be fetched; "
+                    f"the report will appear in DataHub without chart children.",
+                    context=f"workspace={workspace.name}, report_id={report.id}",
                 )
                 report.pages = []
             if report.dataset_id:

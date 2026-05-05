@@ -555,7 +555,7 @@ def new_powerbi_reports(
             type=report_type,
             webUrl=web_url,
             embedUrl=raw_instance.get(Constant.EMBED_URL),
-            description=raw_instance.get(Constant.DESCRIPTION, ""),
+            description=raw_instance.get(Constant.DESCRIPTION) or "",
             pages=[],  # populated in PowerBiAPI.get_reports() via get_pages_by_report()
             dataset_id=raw_instance.get(Constant.DATASET_ID),
             users=[

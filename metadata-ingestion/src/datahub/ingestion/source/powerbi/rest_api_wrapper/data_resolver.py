@@ -764,9 +764,11 @@ class AdminAPIResolver(DataResolverBase):
 
         users_dict: List[Any] = response.json().get(Constant.VALUE, [])
 
+        # Iterate through response and create a list of PowerBiAPI.Dashboard
         users: List[User] = [
             user
-            for user in (new_powerbi_user(instance) for instance in users_dict)
+            for instance in users_dict
+            for user in [new_powerbi_user(instance)]
             if user is not None
         ]
 

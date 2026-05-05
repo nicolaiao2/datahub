@@ -704,7 +704,9 @@ class Mapper:
         """
         Map PowerBi tile to datahub chart
         """
-        logger.info(f"Converting tile {tile.title}(id={tile.id}) to chart")
+        logger.info(
+            f"Converting tile {tile.title or '(untitled)'}(id={tile.id}) to chart"
+        )
         # Create a URN for chart
         chart_urn = builder.make_chart_urn(
             platform=self.__config.platform_name,
@@ -1148,6 +1150,8 @@ class Mapper:
         When create_corp_user=True (opt-in): Extract URNs from created user MCPs
         When create_corp_user=False (default): Get URNs directly (soft references)
         """
+        if not self.__config.extract_ownership:
+            return []
         if self.__config.ownership.create_corp_user:
             return self.to_urn_set(user_mcps)
         else:
@@ -1973,10 +1977,18 @@ class PowerBiDashboardSource(StatefulIngestionSourceBase, TestableSource):
         ]
 
         # Then get the rest of the metadata per workspace.
-        while allowed_workspaces:
-            workspace = allowed_workspaces.pop(0)
+        for workspace in allowed_workspaces:
             logger.info(f"Processing workspace id: {workspace.id}")
-            self.powerbi_client.fill_regular_metadata_detail(workspace=workspace)
+            try:
+                self.powerbi_client.fill_regular_metadata_detail(workspace=workspace)
+            except Exception as e:
+                self.reporter.warning(
+                    title="Failed to Fetch Workspace Metadata",
+                    message="Phase 2 metadata fetch failed for this workspace; it will be skipped.",
+                    context=f"workspace={workspace.name} id={workspace.id}",
+                    exc=e,
+                )
+                continue
 
             if self.source_config.modified_since:
                 # As modified_workspaces is not idempotent, hence we checkpoint for each powerbi workspace

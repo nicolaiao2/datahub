@@ -14,7 +14,6 @@ import { test } from '../../fixtures/base-test';
 import { DatasetPage } from '../../pages/dataset.page';
 import { SearchPage } from '../../pages/search.page';
 
-// Seed the preseeded tag before running tests
 test.use({ featureName: 'manage-tags' });
 
 const SAMPLE_DATASET_URN = 'urn:li:dataset:(urn:li:dataPlatform:hive,SamplePlaywrightHiveDataset,PROD)';

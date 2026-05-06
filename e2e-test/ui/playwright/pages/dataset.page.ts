@@ -8,17 +8,31 @@ export class DatasetPage extends BasePage {
   readonly lineageTab: Locator;
   readonly propertiesTab: Locator;
 
+  // ── Sidebar Tags section ──────────────────────────────────────────────────
+  readonly tagsSectionContainer: Locator;
+  readonly addTagsButton: Locator;
+  readonly tagTermModalInput: Locator;
+  readonly addTagFromModalButton: Locator;
+
   constructor(page: Page, logger?: DataHubLogger, logDir?: string) {
     super(page, logger, logDir);
     this.datasetName = page.locator('[data-testid="dataset-name"]');
     this.schemaTab = page.locator('[data-testid="schema-tab"]');
     this.lineageTab = page.locator('[data-testid="lineage-tab"]');
     this.propertiesTab = page.locator('[data-testid="properties-tab"]');
+
+    this.tagsSectionContainer = page.locator('#entity-profile-tags');
+    this.addTagsButton = page.locator('#entity-profile-tags [data-testid="add-tags-button"]');
+    this.tagTermModalInput = page.locator('[data-testid="tag-term-modal-input"]');
+    this.addTagFromModalButton = page.locator('[data-testid="add-tag-term-from-modal-btn"]');
   }
 
-  async navigateToDataset(urn: string): Promise<void> {
+  async navigateToDataset(urn: string, expectedName?: string): Promise<void> {
     await this.navigate(`/dataset/${encodeURIComponent(urn)}`);
     await this.page.waitForLoadState('networkidle');
+    if (expectedName) {
+      await expect(this.page.getByText(expectedName).first()).toBeVisible({ timeout: 30000 });
+    }
   }
 
   async viewSchema(): Promise<void> {
@@ -159,5 +173,51 @@ export class DatasetPage extends BasePage {
     await this.page.getByText('Yes').click();
     await expect(this.page.getByText('Owner Removed')).toBeVisible({ timeout: 15000 });
     await expect(this.page.getByText(owner)).not.toBeVisible({ timeout: 10000 });
+  }
+
+  // ── Tags ─────────────────────────────────────────────────────────────────
+
+  async assignTag(tagName: string): Promise<void> {
+    await expect(this.addTagsButton).toBeVisible({ timeout: 15000 });
+    await expect(this.addTagsButton).toBeEnabled();
+    await this.addTagsButton.click({ force: true });
+
+    await expect(this.tagTermModalInput).toBeVisible({ timeout: 10000 });
+    const input = this.tagTermModalInput.locator('input');
+    await input.focus();
+    await input.fill(tagName);
+
+    const tagOption = this.page.locator(`[name="${tagName}"]`);
+    await tagOption.waitFor({ state: 'visible', timeout: 10000 });
+    await tagOption.click();
+
+    await this.page.keyboard.press('Escape');
+
+    await expect(this.addTagFromModalButton).toBeEnabled();
+    await this.addTagFromModalButton.evaluate((el: HTMLElement) => el.click());
+
+    await expect(this.page.getByText('Added Tags!')).toBeVisible({ timeout: 15000 });
+  }
+
+  async unassignTag(tagName: string): Promise<void> {
+    const tagChip = this.page.locator(`[data-testid="tag-${tagName}"]`);
+    await expect(tagChip).toBeVisible({ timeout: 10000 });
+
+    const closeIcon = tagChip.locator('[data-testid="remove-icon"]');
+    await closeIcon.click();
+
+    const confirmButton = this.page.locator('[data-testid="modal-confirm-button"]');
+    await expect(confirmButton).toBeVisible({ timeout: 10000 });
+    await confirmButton.click();
+
+    await expect(this.page.getByText('Removed Tag!')).toBeVisible({ timeout: 15000 });
+  }
+
+  async expectTagAssigned(tagName: string): Promise<void> {
+    await expect(this.page.locator(`[data-testid="tag-${tagName}"]`)).toBeVisible({ timeout: 10000 });
+  }
+
+  async expectTagNotAssigned(tagName: string): Promise<void> {
+    await expect(this.page.locator(`[data-testid="tag-${tagName}"]`)).toBeHidden({ timeout: 10000 });
   }
 }

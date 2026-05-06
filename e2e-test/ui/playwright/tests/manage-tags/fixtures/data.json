@@ -1,0 +1,17 @@
+[
+  {
+    "proposedSnapshot": {
+      "com.linkedin.metadata.snapshot.TagSnapshot": {
+        "urn": "urn:li:tag:playwright_assign_unassign_tag",
+        "aspects": [
+          {
+            "com.linkedin.tag.TagProperties": {
+              "name": "playwright_assign_unassign_tag",
+              "description": "Preseeded tag for Playwright assign/unassign test"
+            }
+          }
+        ]
+      }
+    }
+  }
+]

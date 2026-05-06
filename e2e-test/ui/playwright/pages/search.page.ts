@@ -429,4 +429,40 @@ export class SearchPage extends BasePage {
   async expectPaginationVisible(): Promise<void> {
     await expect(this.page.locator('.ant-pagination-next')).toBeVisible();
   }
+
+  // ── Tag-filtered search ───────────────────────────────────────────────────
+
+  async searchByTag(tagName: string): Promise<void> {
+    const tagUrn = encodeURIComponent(`urn:li:tag:${tagName}`);
+    await this.page.goto(`/search?filter_tags___false___EQUAL___0=${tagUrn}&page=1&query=%2A&unionType=0`);
+    await this.page.waitForLoadState('networkidle');
+  }
+
+  async expectEntityInSearchResults(entityUrn: string): Promise<void> {
+    await expect(this.page.locator(`[data-testid="preview-${entityUrn}"]`)).toBeVisible({ timeout: 30000 });
+  }
+
+  /**
+   * Poll for entity disappearance from tag-filtered search results.
+   * Elasticsearch index propagation after tag removal can take several seconds.
+   */
+  async expectEntityNotInSearchResults(entityUrn: string): Promise<void> {
+    const selector = `[data-testid="preview-${entityUrn}"]`;
+    const maxAttempts = 6;
+    const retryDelayMs = 4000;
+    const currentUrl = this.page.url();
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const isVisible = await this.page.locator(selector).isVisible();
+      if (!isVisible) return;
+
+      if (attempt < maxAttempts - 1) {
+        await this.page.waitForTimeout(retryDelayMs);
+        await this.page.goto(currentUrl);
+        await this.page.waitForLoadState('networkidle');
+      }
+    }
+
+    await expect(this.page.locator(selector)).toBeHidden({ timeout: 5000 });
+  }
 }

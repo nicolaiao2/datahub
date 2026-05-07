@@ -63,10 +63,14 @@ test.describe('ingestion sources', () => {
       schedule: { enabled: true, hour: '01' },
     });
     await ingestionPage.sourcesTab.expectSourceVisible(sourceName);
+    await ingestionPage.sourcesTab.expectSourceStatusPending(sourceName);
     await ingestionPage.sourcesTab.expectSchedule(sourceName, '01:00 am');
 
     await ingestionPage.sourcesTab.updateIngestionSource(sourceName, {
       sourceName: updatedSourceName,
+      verifyForm: async () => {
+        await ingestionPage.sourcesTab.snowflakeSource.expectFormValues(sourceDetails);
+      },
       fillForm: async () => {
         await ingestionPage.sourcesTab.snowflakeSource.fillForm(updatedSourceDetails);
       },

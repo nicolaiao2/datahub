@@ -112,12 +112,16 @@ export class SourcesV2Tab extends SourcesBaseTab {
   async updateIngestionSource(sourceName: string, options: UpdateIngestionSourceOptions): Promise<void> {
     this.logger?.step('update ingestion source', { sourceName });
 
-    const { sourceName: newSourceName, fillForm } = options;
+    const { sourceName: newSourceName, verifyForm, fillForm } = options;
 
     await this.expectSourceVisible(sourceName);
     await this.openMoreOptions(sourceName);
     await this.clickDropdownItem('Edit');
     await this.page.getByText('Edit Data Source').waitFor({ state: 'visible' });
+
+    if (verifyForm) {
+      await verifyForm(this.page);
+    }
 
     if (fillForm) {
       await fillForm(this.page);

@@ -63,6 +63,56 @@ test.describe('secrets tab in manage data sources', () => {
       },
     });
     await ingestionPage.sourcesTab.expectSourceVisible(sourceName);
+    await ingestionPage.sourcesTab.expectSourceStatusPending(sourceName);
     await ingestionPage.sourcesTab.deleteIngestionSource(sourceName);
+  });
+
+  test('deleted secret is absent from password dropdown', async () => {
+    const suffix = randomSuffix();
+    const secretName = `playwright_deleted_secret_${suffix}`;
+    const secretValue = `secret-value-${suffix}`;
+
+    await ingestionPage.secretsTab.createSecret(secretName, secretValue);
+    await ingestionPage.secretsTab.deleteSecret(secretName);
+
+    await ingestionPage.sourcesTab.open();
+    await ingestionPage.sourcesTab.openCreateSourceModal();
+    await ingestionPage.sourcesTab.selectSourceType('Snowflake');
+    await ingestionPage.sourcesTab.snowflakeSource.fillAuthenticationType({
+      authenticationType: 'userNameAndPassword',
+    });
+    await ingestionPage.sourcesTab.snowflakeSource.expectSecretAbsentInPasswordDropdown(secretName);
+    await ingestionPage.sourcesTab.cancelCreateSourceModal();
+  });
+
+  test('create secret inline during source creation', async () => {
+    test.slow();
+
+    const suffix = randomSuffix();
+    const sourceName = `ingestion source inline ${suffix}`;
+    const secretName = `playwright_inline_secret_${suffix}`;
+    const secretValue = `secret-value-${suffix}`;
+    const sourceDetails: SnowflakeFormDetails = {
+      accountId: `account_${suffix}`,
+      warehouseId: `warehouse_${suffix}`,
+      username: `user_${suffix}`,
+      role: `role_${suffix}`,
+      authenticationType: 'userNameAndPassword',
+    };
+
+    await ingestionPage.sourcesTab.open();
+    await ingestionPage.sourcesTab.createIngestionSource(sourceName, {
+      sourceType: 'Snowflake',
+      fillForm: async () => {
+        await ingestionPage.sourcesTab.snowflakeSource.fillForm(sourceDetails);
+        await ingestionPage.sourcesTab.createSecretInlineForPassword(secretName, secretValue);
+      },
+    });
+    await ingestionPage.sourcesTab.expectSourceVisible(sourceName);
+    await ingestionPage.sourcesTab.expectSourceStatusPending(sourceName);
+
+    await ingestionPage.sourcesTab.deleteIngestionSource(sourceName);
+    await ingestionPage.secretsTab.navigate();
+    await ingestionPage.secretsTab.deleteSecret(secretName);
   });
 });

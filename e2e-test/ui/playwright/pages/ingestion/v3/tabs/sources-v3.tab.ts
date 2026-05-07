@@ -133,11 +133,15 @@ export class SourcesV3Tab extends SourcesBaseTab {
   async updateIngestionSource(sourceName: string, options: UpdateIngestionSourceOptions): Promise<void> {
     this.logger?.step('update ingestion source', { sourceName });
 
-    const { sourceName: newSourceName, fillForm, schedule } = options;
+    const { sourceName: newSourceName, verifyForm, fillForm, schedule } = options;
 
     await this.searchIfNotVisible(sourceName);
     await this.openMoreOptions(sourceName);
     await this.clickDropdownItem('Edit');
+
+    if (verifyForm) {
+      await verifyForm(this.page);
+    }
 
     if (newSourceName) {
       await this.sourceNameInput.focus();

@@ -158,5 +158,15 @@
       "value": "{\"name\":\"playwright v3 sources search banana\",\"type\":\"demo-data\",\"config\":{\"recipe\":\"{\\\"source\\\":{\\\"type\\\":\\\"demo-data\\\",\\\"config\\\":{}}}\",\"executorId\":\"default\"}}",
       "contentType": "application/json"
     }
+  },
+  {
+    "entityType": "dataHubSecret",
+    "entityUrn": "urn:li:dataHubSecret:playwright-v3-ingestion-secret",
+    "changeType": "UPSERT",
+    "aspectName": "dataHubSecretValue",
+    "aspect": {
+      "value": "{\"name\":\"playwright-v3-ingestion-secret\",\"value\":\"test-secret-value\"}",
+      "contentType": "application/json"
+    }
   }
 ]

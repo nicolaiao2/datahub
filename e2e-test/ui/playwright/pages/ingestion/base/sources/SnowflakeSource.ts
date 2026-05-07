@@ -1,4 +1,4 @@
-import { type Locator, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 import type { DataHubLogger } from '@utils/logger';
 import { BaseSource } from '@pages/ingestion/base/sources/BaseSource';
 
@@ -104,6 +104,43 @@ export class SnowflakeSource extends BaseSource {
   async fillRole(details: SnowflakeFormDetails): Promise<void> {
     if (details.role) {
       await this.fillSecretFieldAsPlainValue(this.roleInput, details.role);
+    }
+  }
+
+  async expectSecretAbsentInPasswordDropdown(secretName: string): Promise<void> {
+    this.logger?.step('verify secret absent in password dropdown', { secretName });
+    await this.passwordInput.scrollIntoViewIfNeeded();
+    await this.passwordInput.click();
+    const dropdown = this.page.locator('.ant-select-dropdown').last();
+    await dropdown.waitFor({ state: 'visible' });
+    await expect(dropdown.getByText(secretName, { exact: true })).toBeHidden();
+    await this.page.keyboard.press('Escape');
+  }
+
+  async expectFormValues(details: Partial<SnowflakeFormDetails>): Promise<void> {
+    this.logger?.step('verify snowflake form values', { details });
+    await this.waitForForm();
+
+    if (details.accountId) {
+      await expect(this.accountIdInput).toHaveValue(details.accountId, { timeout: 15000 });
+    }
+    if (details.warehouseId) {
+      await expect(this.warehouseInput).toHaveValue(details.warehouseId);
+    }
+    if (details.username) {
+      await expect(this.usernameInput).toHaveValue(details.username);
+    }
+    if (details.authenticationType) {
+      const displayText = details.authenticationType === 'privateKey' ? 'Key' : 'Username & Password';
+      await expect(
+        this.authenticationTypeField.locator('xpath=ancestor::*[contains(@class,"ant-select")][1]'),
+      ).toContainText(displayText);
+    }
+    if (details.password) {
+      await expect(this.passwordInput).toHaveValue(details.password);
+    }
+    if (details.role) {
+      await expect(this.roleInput).toHaveValue(details.role);
     }
   }
 }

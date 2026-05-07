@@ -31,6 +31,7 @@ export interface CreateIngestionSourceOptions {
 
 export interface UpdateIngestionSourceOptions {
   sourceName?: string;
+  verifyForm?: SourceFormFiller;
   fillForm?: SourceFormFiller;
   schedule?: ScheduleOptions;
 }
@@ -359,6 +360,15 @@ export abstract class SourcesBaseTab extends BaseTab {
   async expectSourceStatusContains(sourceName: string, status: string): Promise<void> {
     const row = this.getSourceCell(sourceName).locator('..');
     await expect(row.getByText(status, { exact: false })).toBeVisible({ timeout: 100000 });
+  }
+
+  async expectSourceStatusPending(sourceName: string): Promise<void> {
+    await this.expectSourceStatusContains(sourceName, 'Pending');
+  }
+
+  async cancelCreateSourceModal(): Promise<void> {
+    this.logger?.step('cancel create source modal');
+    await this.navigate();
   }
 
   async expectCliPillVisible(): Promise<void> {

@@ -1689,6 +1689,7 @@ sigma = [
     { name = "patchy" },
     { name = "requests" },
     { name = "sqlglot" },
+    { name = "sqlparse" },
 ]
 slack = [
     { name = "slack-sdk" },
@@ -3390,6 +3391,7 @@ requires-dist = [
     { name = "sqlparse", marker = "extra == 'presto-on-hive'", specifier = "<0.6.0" },
     { name = "sqlparse", marker = "extra == 'redshift'", specifier = "<0.6.0" },
     { name = "sqlparse", marker = "extra == 'redshift-slim'", specifier = "<0.6.0" },
+    { name = "sqlparse", marker = "extra == 'sigma'", specifier = "<0.6.0" },
     { name = "sqlparse", marker = "extra == 'snowflake'", specifier = "<0.6.0" },
     { name = "sqlparse", marker = "extra == 'snowflake-queries'", specifier = "<0.6.0" },
     { name = "sqlparse", marker = "extra == 'snowflake-summary'", specifier = "<0.6.0" },

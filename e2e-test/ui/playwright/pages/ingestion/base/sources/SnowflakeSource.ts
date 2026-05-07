@@ -133,7 +133,7 @@ export class SnowflakeSource extends BaseSource {
     if (details.authenticationType) {
       const displayText = details.authenticationType === 'privateKey' ? 'Key' : 'Username & Password';
       await expect(
-        this.authenticationTypeField.locator('xpath=ancestor::*[contains(@class,"ant-select")][1]'),
+        this.authenticationTypeField.locator('xpath=ancestor::div[contains(@class,"ant-select")][1]'),
       ).toContainText(displayText);
     }
     if (details.password) {

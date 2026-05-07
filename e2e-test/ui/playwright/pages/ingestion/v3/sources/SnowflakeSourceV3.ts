@@ -32,9 +32,7 @@ export class SnowflakeSourceV3 extends SnowflakeSource {
       // The v3 form renders auth type with a custom component (no #authentication_type hidden input).
       // Verify by checking the displayed value within the form row containing the "Authentication Type" label.
       // ancestor::div[2] from the label <p>: level 1 = label wrapper, level 2 = field row containing the select.
-      const authTypeRow = this.page
-        .locator('p:text-is("Authentication Type")')
-        .locator('xpath=ancestor::div[2]');
+      const authTypeRow = this.page.locator('p:text-is("Authentication Type")').locator('xpath=ancestor::div[2]');
       await expect(authTypeRow).toContainText(displayText);
     }
   }

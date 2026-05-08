@@ -12,8 +12,6 @@
  *   - CreateGlossaryEntityModal.tsx → create-glossary-entity-modal-name, glossary-entity-modal-create-button
  *   - MoveGlossaryEntityModal.tsx   → move-glossary-entity-modal, glossary-entity-modal-move-button
  *   - EntityDropdown.tsx            → MoreVertOutlinedIcon (three-dot), entity-menu-delete-button, entity-menu-move-button
- *   - SidebarGlossaryTermsSection.tsx → entity-profile-glossary-terms, add-terms-button
- *   - AddTagsTermsModal.tsx         → tag-term-modal-input, tag-term-option, add-tag-term-from-modal-btn
  *   - EntityActions.tsx             → glossary-batch-add
  *   - EntitySearchResults.tsx       → checkbox-{urn} (entity select checkboxes in batch-add modal)
  *   - SearchSelectModal.tsx         → search-select-modal
@@ -23,8 +21,12 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 import { BasePage } from './base.page';
 import type { DataHubLogger } from '../utils/logger';
+import { GraphQLHelper } from '../helpers/graphql-helper';
+import { ModalComponent } from './common/modal-component';
 
 export class GlossaryPage extends BasePage {
+  readonly modalComponent: ModalComponent;
+
   // ── Navigation ──────────────────────────────────────────────────────────────
   readonly glossaryPageHeader: Locator;
   readonly sidebarContainer: Locator;
@@ -51,21 +53,13 @@ export class GlossaryPage extends BasePage {
   readonly entityMenuDeleteButton: Locator;
   readonly entityMenuMoveButton: Locator;
 
-  // ── Dataset sidebar — add glossary term section ───────────────────────────────
-  readonly sidebarGlossarySection: Locator;
-  readonly addTermsButton: Locator;
-
-  // ── Add tag/term modal (AddTagsTermsModal) ─────────────────────────────────
-  readonly tagTermModalInput: Locator;
-  readonly tagTermOption: Locator;
-  readonly addTagTermConfirmButton: Locator;
-
   // ── Batch-add glossary term button (EntityActions) ─────────────────────────
   readonly batchAddGlossaryButton: Locator;
 
   // ── Batch-add modal entity results (SearchSelectModal / EntitySearchResults) ─
   readonly previewEntities: Locator;
   readonly entityCheckboxes: Locator;
+  readonly modalSearchInput: Locator;
 
   // ── Search input (shared EmbeddedListSearch) ──────────────────────────────
   readonly searchInput: Locator;
@@ -73,8 +67,24 @@ export class GlossaryPage extends BasePage {
   // ── Continue button (entity selection modal) ──────────────────────────────
   readonly continueButton: Locator;
 
+  // ── Related-assets filter icon ────────────────────────────────────────────
+  readonly facetFilterIcon: Locator;
+  readonly firstFacetTagCheckbox: Locator;
+
+  // ── Advanced search / filter panel ───────────────────────────────────────
+  readonly advancedSearchButton: Locator;
+  readonly addFilterButton: Locator;
+  readonly addFilterTagsButton: Locator;
+  readonly filterTagSelectInput: Locator;
+  readonly addTagsConfirmButton: Locator;
+
+  private readonly graphqlHelper: GraphQLHelper;
+
   constructor(page: Page, logger?: DataHubLogger, logDir?: string) {
     super(page, logger, logDir);
+    this.graphqlHelper = new GraphQLHelper(page);
+
+    this.modalComponent = new ModalComponent(page);
 
     this.glossaryPageHeader = page.locator('[data-testid="glossaryPageV2"]');
     this.sidebarContainer = page.locator('[data-testid="glossary-browser-sidebar"]');
@@ -96,23 +106,25 @@ export class GlossaryPage extends BasePage {
     this.entityMenuDeleteButton = page.locator('[data-testid="entity-menu-delete-button"]');
     this.entityMenuMoveButton = page.locator('[data-testid="entity-menu-move-button"]');
 
-    this.sidebarGlossarySection = page.locator('#entity-profile-glossary-terms');
-    this.addTermsButton = page.locator('[data-testid="add-terms-button"]');
-
-    // The AntD Select renders as a div wrapper; we target the inner search input for typing.
-    this.tagTermModalInput = page.locator('[data-testid="tag-term-modal-input"] input');
-    this.tagTermOption = page.locator('[data-testid="tag-term-option"]').first();
-    this.addTagTermConfirmButton = page.locator('[data-testid="add-tag-term-from-modal-btn"]');
-
     this.batchAddGlossaryButton = page.locator('[data-testid="glossary-batch-add"]').first();
 
     // preview-urn: prefix is set by entity preview cards; checkbox- prefix by entity select checkboxes.
     this.previewEntities = page.locator('[data-testid^="preview-urn:"]');
     this.entityCheckboxes = page.locator('[data-testid^="checkbox-"]');
+    this.modalSearchInput = page.locator('[data-testid="search-select-modal"] [data-testid="search-input"]');
 
     this.searchInput = page.locator('[data-testid="search-input"]').last();
 
     this.continueButton = page.locator('#continueButton');
+    this.facetFilterIcon = page.locator('.anticon-filter').first();
+    this.firstFacetTagCheckbox = page
+      .locator('input.ant-checkbox-input[data-testid^="facet-tags-urn:li:tag:"]')
+      .first();
+    this.advancedSearchButton = page.locator('#search-results-advanced-search');
+    this.addFilterButton = page.getByText('Add Filter');
+    this.addFilterTagsButton = page.getByTestId('adv-search-add-filter-tags');
+    this.filterTagSelectInput = page.locator('div.ant-select-selection-overflow input');
+    this.addTagsConfirmButton = page.locator('[data-testid="add-tag-term-from-modal-btn"]');
   }
 
   // ── Navigation ───────────────────────────────────────────────────────────────
@@ -120,17 +132,23 @@ export class GlossaryPage extends BasePage {
   async navigateToGlossary(): Promise<void> {
     this.logger?.step('navigate', { url: '/glossary' });
     await this.page.goto('/glossary');
-    await this.page.waitForLoadState('networkidle');
-    await expect(this.sidebarContainer).toBeVisible({ timeout: 30000 });
+    await this.waitForPageLoad();
+    await expect(this.sidebarContainer).toBeVisible();
+  }
+
+  async navigateToGlossaryTermByUrn(urn: string): Promise<void> {
+    this.logger?.step('navigateToGlossaryTermByUrn', { urn });
+    await this.page.goto(`/glossaryTerm/${encodeURIComponent(urn)}`);
+    await this.waitForPageLoad();
   }
 
   async navigateToGlossaryTerm(text: string): Promise<void> {
     // Prefer clicking a visible link or text rather than a hidden sidebar span.
     // Filter to only the visible match so we don't hit hidden sidebar browser entries.
     const visibleElement = this.page.getByText(text).filter({ visible: true }).first();
-    await visibleElement.waitFor({ state: 'visible', timeout: 30000 });
+    await visibleElement.waitFor({ state: 'visible' });
     await visibleElement.click();
-    await this.page.waitForLoadState('networkidle');
+    await this.waitForPageLoad();
   }
 
   async navigateToEntityContentsTab(): Promise<void> {
@@ -145,40 +163,50 @@ export class GlossaryPage extends BasePage {
     await this.clickEntityTabByName('Related Assets');
   }
 
+  getEntityTabLocator(tabName: string): Locator {
+    return this.page.locator(`[data-testid="${tabName}-entity-tab-header"]`);
+  }
+
   async clickEntityTabByName(tabName: string): Promise<void> {
-    const tabSelector = `[data-testid="${tabName}-entity-tab-header"]`;
-    await this.page.locator(tabSelector).click();
-    await this.page.waitForLoadState('networkidle');
+    await this.getEntityTabLocator(tabName).click();
+    await this.waitForPageLoad();
   }
 
   // ── Glossary Term Group CRUD ─────────────────────────────────────────────────
-
   /**
    * Creates a root-level Term Group from the glossary home page header button.
-   * Opens the modal, types the name, and confirms.
+   * Returns the URN of the created term group from the GraphQL response.
    */
-  async createTermGroup(name: string): Promise<void> {
+  async createTermGroup(name: string): Promise<string> {
     this.logger?.step('createTermGroup', { name });
     await this.addTermGroupButtonV2.click();
     // Wait for the modal heading (h1 role) specifically to avoid matching the button text.
-    await expect(this.page.getByRole('heading', { name: 'Create Glossary' })).toBeVisible({ timeout: 15000 });
+    await expect(this.page.getByRole('heading', { name: 'Create Glossary' })).toBeVisible();
     await this.createModalNameInput.fill(name);
+    const responsePromise = this.graphqlHelper.waitForGraphQLResponse('createGlossaryNode');
     await this.createModalSubmitButton.click();
-    await expect(this.page.getByText(`Created Term Group!`)).toBeVisible({ timeout: 15000 });
+    await expect(this.page.getByText(`Created Term Group!`)).toBeVisible();
+    const response = await responsePromise;
+    return (response.data as Record<string, string>).createGlossaryNode;
   }
 
   /**
    * Creates a Glossary Term inside the currently-open entity (term group) page.
    * Requires the Contents tab to already be active.
+   * Returns the URN of the created term from the GraphQL response.
    */
-  async createTermInContentsTab(name: string): Promise<void> {
+  async createTermInContentsTab(name: string): Promise<string> {
     this.logger?.step('createTermInContentsTab', { name });
     await this.addTermButton.click();
-    await expect(this.page.getByRole('heading', { name: 'Create Glossary Term' })).toBeVisible({ timeout: 15000 });
+    await expect(this.page.getByRole('heading', { name: 'Create Glossary Term' })).toBeVisible();
     await this.createModalNameInput.fill(name);
+    const responsePromise = this.graphqlHelper.waitForGraphQLResponse('createGlossaryTerm');
     await this.createModalSubmitButton.click();
-    // The mutation fires async; wait for the success toast which appears after ~2s.
-    await expect(this.page.getByText('Created Glossary Term!')).toBeVisible({ timeout: 15000 });
+    const createdToast = this.page.getByText('Created Glossary Term!');
+    await expect(createdToast).toBeVisible();
+    await expect(createdToast).toBeHidden();
+    const response = await responsePromise;
+    return (response.data as Record<string, string>).createGlossaryTerm;
   }
 
   // ── Three-dot entity menu actions ────────────────────────────────────────────
@@ -192,8 +220,9 @@ export class GlossaryPage extends BasePage {
   async deleteCurrentEntity(): Promise<void> {
     this.logger?.step('deleteCurrentEntity');
     await this.openEntityMenu();
-    await this.page.getByText('Delete').click();
+    await this.entityMenuDeleteButton.click();
     await this.page.getByRole('button', { name: 'Yes' }).click();
+    await expect(this.page.getByText(/Deleted .+!/)).toBeVisible();
   }
 
   /**
@@ -205,7 +234,7 @@ export class GlossaryPage extends BasePage {
     await this.openEntityMenu();
     // Use the entity-menu-move-button testid to avoid matching hidden DnD accessibility elements.
     await this.entityMenuMoveButton.click();
-    await expect(this.moveModalContainer).toBeVisible({ timeout: 15000 });
+    await expect(this.moveModalContainer).toBeVisible();
     // Type into the AntD Select search input to filter results — more reliable than
     // scrolling through the GlossaryBrowser tree which accumulates entries across test runs.
     const selectInput = this.moveModalContainer.locator('.ant-select-selector input');
@@ -213,32 +242,10 @@ export class GlossaryPage extends BasePage {
     await selectInput.fill(targetName);
     // The dropdown shows search results (not the tree browser) when a query is present.
     const option = this.page.locator('.ant-select-dropdown').getByText(targetName, { exact: true }).first();
-    await expect(option).toBeVisible({ timeout: 15000 });
+    await expect(option).toBeVisible();
     await option.click();
     await this.moveModalSubmitButton.click({ force: true });
-  }
-
-  // ── Dataset glossary term management ────────────────────────────────────────
-
-  /**
-   * Navigates to a dataset entity page and adds a glossary term via the sidebar.
-   * @param datasetPath - URL path segment after the base URL (e.g. "dataset/urn:li:...").
-   * @param datasetName - Display name to wait for after navigation.
-   * @param termName    - Glossary term to search for and add.
-   */
-  async addGlossaryTermToDataset(datasetPath: string, datasetName: string, termName: string): Promise<void> {
-    this.logger?.step('addGlossaryTermToDataset', { datasetName, termName });
-    await this.page.goto(`/${datasetPath}`);
-    await this.page.waitForLoadState('networkidle');
-    await expect(this.page.getByText(datasetName).first()).toBeVisible({ timeout: 30000 });
-    await this.sidebarGlossarySection.locator('[data-testid="add-terms-button"]').click();
-    await expect(this.tagTermModalInput).toBeVisible({ timeout: 15000 });
-    // AntD Select triggers search via keyboard events; pressSequentially (not fill) is required.
-    await this.tagTermModalInput.pressSequentially(termName);
-    await this.tagTermOption.click();
-    await this.addTagTermConfirmButton.click();
-    await expect(this.addTagTermConfirmButton).not.toBeVisible({ timeout: 15000 });
-    await expect(this.page.getByText(termName)).toBeVisible({ timeout: 15000 });
+    await expect(this.page.getByText(/Moved .+!/)).toBeVisible();
   }
 
   // ── Batch add term to entities ───────────────────────────────────────────────
@@ -250,31 +257,34 @@ export class GlossaryPage extends BasePage {
   async batchAddToFirstResult(): Promise<void> {
     this.logger?.step('batchAddToFirstResult');
     await this.batchAddGlossaryButton.click();
-    await expect(this.previewEntities.first()).toBeVisible({ timeout: 30000 });
+    await expect(this.previewEntities.first()).toBeVisible();
     await this.entityCheckboxes.first().click();
     await this.continueButton.click();
-    await expect(this.page.getByText('Added Glossary Term to entities!')).toBeVisible({ timeout: 15000 });
+    await expect(this.page.getByText('Added Glossary Term to entities!')).toBeVisible();
   }
 
   /**
    * Uses the "Add Assets" batch button to assign the term to a specific entity found by search query.
    * Searches within the modal for the entity by name, waits for it to appear, then confirms.
    */
+  getPreviewEntityTitleByText(text: string): Locator {
+    return this.previewEntities.locator('[data-testid="entity-title"]').filter({ hasText: text }).first();
+  }
+
+  async getFirstPreviewEntityTitle(): Promise<string> {
+    return this.previewEntities.locator('[data-testid="entity-title"]').first().innerText();
+  }
+
   async batchAddToEntityBySearch(query: string): Promise<void> {
     this.logger?.step('batchAddToEntityBySearch', { query });
     await this.batchAddGlossaryButton.click();
-    // Wait for the modal search input to be ready.
-    const modalSearchInput = this.page.locator('[data-testid="search-select-modal"] [data-testid="search-input"]');
-    await expect(modalSearchInput).toBeVisible({ timeout: 30000 });
+    await expect(this.modalSearchInput).toBeVisible();
     // pressSequentially triggers the debounced search handler character by character.
-    await modalSearchInput.pressSequentially(query, { delay: 50 });
-    await this.page.waitForLoadState('networkidle');
-    // Wait for the search results to show the specific entity.
-    const entityTitle = this.previewEntities.locator('[data-testid="entity-title"]').filter({ hasText: query }).first();
-    await expect(entityTitle).toBeVisible({ timeout: 15000 });
+    await this.modalSearchInput.pressSequentially(query, { delay: 50 });
+    await expect(this.getPreviewEntityTitleByText(query)).toBeVisible();
     await this.entityCheckboxes.first().click();
     await this.continueButton.click();
-    await expect(this.page.getByText('Added Glossary Term to entities!')).toBeVisible({ timeout: 15000 });
+    await expect(this.page.getByText('Added Glossary Term to entities!')).toBeVisible();
   }
 
   // ── Search within an entity page ─────────────────────────────────────────────
@@ -284,7 +294,7 @@ export class GlossaryPage extends BasePage {
     await this.searchInput.click();
     await this.searchInput.fill(query);
     await this.searchInput.press('Enter');
-    await this.page.waitForLoadState('networkidle');
+    await this.waitForPageLoad();
   }
 
   // ── Sidebar navigation ───────────────────────────────────────────────────────
@@ -292,7 +302,7 @@ export class GlossaryPage extends BasePage {
   /** Clicks an item by name in the glossary browser sidebar. */
   async clickSidebarItem(name: string): Promise<void> {
     await this.sidebarContainer.getByText(name).click();
-    await this.page.waitForLoadState('networkidle');
+    await this.waitForPageLoad();
   }
 
   // ── Related-assets filtering ─────────────────────────────────────────────────
@@ -302,24 +312,38 @@ export class GlossaryPage extends BasePage {
    * .anticon-filter is the AntD CSS class applied to the filter icon button; no data-testid exists.
    */
   async clickFacetFilterIcon(): Promise<void> {
-    await this.page.locator('.anticon-filter').first().click();
+    await this.facetFilterIcon.click();
+  }
+
+  /**
+   * Opens the basic facet filter panel and clicks the checkbox for a specific tag.
+   * The facet checkbox data-testid is `facet-tags-{tagUrn}`.
+   */
+  async applyFacetTagFilter(tagUrn: string): Promise<void> {
+    this.logger?.step('applyFacetTagFilter', { tagUrn });
+    await this.facetFilterIcon.click();
+    await this.page.locator(`input.ant-checkbox-input[data-testid="facet-tags-${tagUrn}"]`).click();
   }
 
   /**
    * Applies an advanced-search tag filter on the Related Assets panel.
    * Navigates: filter icon → Advanced → Add Filter → Tags → selects tag → confirms.
    */
+  getTagFilterOption(tagName: string): Locator {
+    return this.page.locator(`[data-testid="tag-term-option-${tagName}"]`);
+  }
+
   async filterRelatedAssetsByTag(tagName: string): Promise<void> {
     this.logger?.step('filterRelatedAssetsByTag', { tagName });
-    await this.page.locator('[aria-label="filter"]').first().click();
-    await this.page.locator('#search-results-advanced-search').click();
-    await this.page.getByText('Add Filter').click();
-    await this.page.getByTestId('adv-search-add-filter-tags').click();
+    await this.facetFilterIcon.click();
+    await this.advancedSearchButton.click();
+    await this.addFilterButton.click();
+    await this.addFilterTagsButton.click();
     // AntD Select: type into the overflow input to trigger the options search.
-    await this.page.locator('div.ant-select-selection-overflow input').pressSequentially(tagName);
-    await this.page.locator(`[data-testid="tag-term-option-${tagName}"]`).click();
-    await this.page.getByText('Add Tags').click();
-    await this.addTagTermConfirmButton.click();
+    await this.filterTagSelectInput.pressSequentially(tagName);
+    await this.getTagFilterOption(tagName).click();
+    await this.modalComponent.title.click();
+    await this.addTagsConfirmButton.click();
   }
 
   // ── Assertions ───────────────────────────────────────────────────────────────
@@ -328,29 +352,38 @@ export class GlossaryPage extends BasePage {
    * Asserts the Properties tab is the currently selected tab.
    * Uses role="tab" ARIA selector instead of AntD-internal [data-node-key] + .ant-tabs-tab-btn.
    */
-  async expectPropertiesTabActive(timeout = 10000): Promise<void> {
-    await expect(this.page.getByRole('tab', { name: 'Properties' }).first()).toHaveAttribute('aria-selected', 'true', {
-      timeout,
-    });
+  async expectPropertiesTabActive(): Promise<void> {
+    await expect(this.page.getByRole('tab', { name: 'Properties' }).first()).toHaveAttribute('aria-selected', 'true');
   }
 
-  async expectTextVisible(text: string, timeout = 15000): Promise<void> {
-    await expect(this.page.getByText(text).filter({ visible: true }).first()).toBeVisible({ timeout });
+  async expectTextVisible(text: string): Promise<void> {
+    await expect(this.page.getByText(text).filter({ visible: true }).first()).toBeVisible();
   }
 
-  async expectTextNotPresent(text: string, timeout = 15000): Promise<void> {
-    await expect(this.page.getByText(text).first()).not.toBeVisible({ timeout });
+  async expectTextNotPresent(text: string): Promise<void> {
+    await expect(this.page.getByText(text).first()).toBeHidden();
   }
 
-  async expectSidebarContains(name: string, timeout = 15000): Promise<void> {
-    await expect(this.sidebarContainer.getByText(name)).toBeVisible({ timeout });
+  async expectSidebarContains(name: string): Promise<void> {
+    await expect(this.sidebarContainer.getByText(name)).toBeVisible();
   }
 
-  async expectSidebarNotContains(name: string, timeout = 15000): Promise<void> {
-    await expect(this.sidebarContainer.getByText(name)).not.toBeVisible({ timeout });
+  async expectSidebarNotContains(name: string): Promise<void> {
+    await expect(this.sidebarContainer.getByText(name)).toBeHidden();
   }
 
-  async expectPreviewEntitiesVisible(timeout = 30000): Promise<void> {
-    await expect(this.previewEntities.first()).toBeVisible({ timeout });
+  async expectPreviewEntitiesVisible(): Promise<void> {
+    await expect(this.previewEntities.first()).toBeVisible();
+  }
+
+  /**
+   * Asserts that a specific entity preview card is visible, matched by URN.
+   * Uses .or() to tolerate both the exact `preview-{urn}` testid and a
+   * `preview-{urn}` prefix match (some entity types append a sub-path).
+   */
+  async expectPreviewEntityByUrn(urn: string): Promise<void> {
+    const exact = this.page.locator(`[data-testid="preview-${urn}"]`);
+    const prefix = this.page.locator(`[data-testid^="preview-${urn}"]`);
+    await expect(exact.or(prefix).first()).toBeVisible();
   }
 }

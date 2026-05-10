@@ -3558,7 +3558,7 @@ class SigmaSource(StatefulIngestionSourceBase, TestableSource):
                             element_warehouse_table_index=element_warehouse_table_index,
                             elementId_to_chart_urn=elementId_to_chart_urn,
                         )
-                        if r is not None:
+                        if r is not None and r not in {p for p, _ in resolved_list}:
                             resolved_list.append((r, ref))
                     if not resolved_list and refs:
                         total = len(refs)
